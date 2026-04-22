@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AI-powered Movie Recommender System by Abdulla Ansari. Discover your next favorite movie.">
+  <title>CineMatch — Movie Recommender by Abdulla Ansari</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+</head>
+<body>
+
+  <!-- ─── ANTIGRAVITY CANVAS ANIMATION ─── -->
+  <canvas id="antigravityCanvas"></canvas>
+
+  <!-- ─── DENSE POSTER COLLAGE BACKGROUND ─── -->
+  <div class="poster-bg" id="posterBg"></div>
+  <div class="poster-bg-overlay"></div>
+
+  <!-- ─── NAVBAR ─── -->
+  <nav class="navbar" id="navbar">
+    <a href="#" class="logo" onclick="location.reload()">
+      <div class="logo-icon">🎬</div>
+      <span class="logo-text">CineMatch</span>
+    </a>
+    <div class="nav-author">
+      <div class="author-avatar">AA</div>
+      <div class="author-info">
+        <span class="author-label">Created by</span>
+        <span class="author-name">Abdulla Ansari</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ─── HERO SECTION ─── -->
+  <section class="hero" id="heroSection">
+    <div class="hero-badge">
+      <span class="dot"></span>
+      AI-Powered Recommendations
+    </div>
+    <h1>
+      Discover Your Next<br>
+      <span class="gradient-text">Favorite Movie</span>
+    </h1>
+    <p class="hero-subtitle">
+      Search from thousands of movies and get personalized recommendations powered by machine learning.
+      Built with ❤️ by <strong style="color: var(--accent-3);">Abdulla Ansari</strong>
+    </p>
+
+    <!-- ─── SEARCH BOX ─── -->
+    <div class="search-container">
+      <div class="search-wrapper">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="movieInput" placeholder="Type a movie name... e.g. Avatar, Inception" autocomplete="off">
+        <button id="searchBtn" onclick="getRecommendations()">
+          <span class="btn-text">✨ Recommend</span>
+          <div class="btn-loader"></div>
+        </button>
+      </div>
+      <div class="autocomplete-dropdown" id="autocomplete"></div>
+    </div>
+  </section>
+
+  <!-- ─── RESULTS SECTION ─── -->
+  <section class="results-section" id="resultsSection">
+    <div class="results-header">
+      <h2>Recommendations for "<span class="selected-movie" id="selectedMovieTitle"></span>"</h2>
+      <p>Here are movies you'll love based on your selection</p>
+    </div>
+    <div id="moviesContainer"></div>
+  </section>
+
+  <!-- ─── MOVIE DETAIL MODAL ─── -->
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <img id="modalPoster" src="" alt="">
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <h2 class="modal-title" id="modalTitle"></h2>
+        <p class="modal-tagline" id="modalTagline"></p>
+        <div class="modal-stats" id="modalStats"></div>
+        <div class="modal-genres" id="modalGenres"></div>
+        <p class="modal-overview" id="modalOverview"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── FOOTER ─── -->
+  <footer class="footer">
+    <p>🎬 CineMatch — Movie Recommender System &copy; 2026 | Designed & Developed by <a href="#">Abdulla Ansari</a></p>
+  </footer>
+
+<script>
+// ─── STATE ───
+let allMovies = [];       // [{title, movie_id}, ...]
+let recommendations = {}; // {title: [{title, movie_id}, ...]}
+let selectedIdx = -1;
+
+const TMDB_API_KEY = "8265bd1679663a7ea12ac168da84d2e8";
+
+// ─── INIT ───
+document.addEventListener('DOMContentLoaded', () => {
+  initAntigravity();
+  loadData();
+  setupNavbarScroll();
+  setupKeyboardNav();
+});
+
+// ─── LOAD PRECOMPUTED DATA ───
+async function loadData() {
+  try {
+    const [moviesRes, recsRes] = await Promise.all([
+      fetch('/data/movies.json'),
+      fetch('/data/recommendations.json')
+    ]);
+    allMovies = await moviesRes.json();
+    recommendations = await recsRes.json();
+    console.log(`Loaded ${allMovies.length} movies and recommendations`);
+    loadPosterBackground();
+  } catch (e) {
+    console.error('Failed to load data:', e);
+  }
+}
+
+// ─── TMDB API HELPERS (client-side) ───
+async function fetchPoster(movieId) {
+  try {
+    const res = await fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${TMDB_API_KEY}&language=en-US`);
+    const data = await res.json();
+    return data.poster_path ? `https://image.tmdb.org/t/p/w500${data.poster_path}` : '';
+  } catch { return ''; }
+}
+
+async function fetchMovieDetails(movieId) {
+  try {
+    const res = await fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${TMDB_API_KEY}&language=en-US`);
+    const data = await res.json();
+    return {
+      overview: data.overview || 'No overview available.',
+      release_date: data.release_date || 'N/A',
+      vote_average: data.vote_average || 0,
+      runtime: data.runtime || 0,
+      genres: (data.genres || []).map(g => g.name),
+      tagline: data.tagline || '',
+      poster: data.poster_path ? `https://image.tmdb.org/t/p/w500${data.poster_path}` : ''
+    };
+  } catch {
+    return { overview: 'N/A', release_date: 'N/A', vote_average: 0, runtime: 0, genres: [], tagline: '', poster: '' };
+  }
+}
+
+// ─── ANTIGRAVITY PHYSICS ANIMATION ───
+function initAntigravity() {
+  const canvas = document.getElementById('antigravityCanvas');
+  const ctx = canvas.getContext('2d');
+  let W, H;
+  let mouse = { x: -1000, y: -1000 };
+  const particles = [];
+  const PARTICLE_COUNT = 60;
+  const colors = [
+    'rgba(233, 69, 96, 0.6)', 'rgba(123, 47, 247, 0.6)', 'rgba(0, 212, 255, 0.5)',
+    'rgba(255, 107, 157, 0.5)', 'rgba(196, 113, 245, 0.5)', 'rgba(72, 219, 251, 0.4)',
+    'rgba(255, 215, 0, 0.3)', 'rgba(0, 255, 136, 0.3)'
+  ];
+
+  function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+  resize();
+  window.addEventListener('resize', resize);
+  document.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
+  document.addEventListener('mouseleave', () => { mouse.x = -1000; mouse.y = -1000; });
+
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const size = Math.random() * 18 + 4;
+    particles.push({
+      x: Math.random() * W, y: Math.random() * H,
+      vx: (Math.random() - 0.5) * 1.5, vy: (Math.random() - 0.5) * 1.5,
+      size, baseSize: size,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      rotation: Math.random() * 360, rotSpeed: (Math.random() - 0.5) * 2,
+      wobblePhase: Math.random() * Math.PI * 2, wobbleSpeed: Math.random() * 0.02 + 0.005,
+      shape: Math.random() > 0.4 ? 'circle' : (Math.random() > 0.5 ? 'square' : 'triangle')
+    });
+  }
+
+  function animate() {
+    ctx.clearRect(0, 0, W, H);
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x, dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 150) {
+          ctx.beginPath(); ctx.moveTo(particles[i].x, particles[i].y); ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = `rgba(123, 47, 247, ${0.08 * (1 - dist / 150)})`; ctx.lineWidth = 0.5; ctx.stroke();
+        }
+      }
+    }
+    particles.forEach(p => {
+      p.wobblePhase += p.wobbleSpeed;
+      p.vy += Math.sin(p.wobblePhase) * 0.02;
+      p.vx += Math.cos(p.wobblePhase * 0.7) * 0.015;
+      const mdx = p.x - mouse.x, mdy = p.y - mouse.y, mDist = Math.sqrt(mdx * mdx + mdy * mdy);
+      if (mDist < 180) {
+        const force = (180 - mDist) / 180;
+        p.vx += (mdx / mDist) * force * 0.8; p.vy += (mdy / mDist) * force * 0.8;
+        p.size = p.baseSize * (1 + force * 0.5);
+      } else { p.size += (p.baseSize - p.size) * 0.05; }
+      p.vx *= 0.985; p.vy *= 0.985;
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < p.size) { p.x = p.size; p.vx *= -0.7; }
+      if (p.x > W - p.size) { p.x = W - p.size; p.vx *= -0.7; }
+      if (p.y < p.size) { p.y = p.size; p.vy *= -0.7; }
+      if (p.y > H - p.size) { p.y = H - p.size; p.vy *= -0.7; }
+      p.rotation += p.rotSpeed;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate((p.rotation * Math.PI) / 180); ctx.globalAlpha = 0.7;
+      if (p.shape === 'circle') {
+        ctx.beginPath(); ctx.arc(0, 0, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.shadowBlur = 20; ctx.fill();
+      } else if (p.shape === 'square') {
+        ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.shadowBlur = 15;
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+      } else {
+        ctx.beginPath(); ctx.moveTo(0, -p.size); ctx.lineTo(p.size * 0.87, p.size * 0.5);
+        ctx.lineTo(-p.size * 0.87, p.size * 0.5); ctx.closePath();
+        ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.shadowBlur = 15; ctx.fill();
+      }
+      ctx.restore();
+    });
+    requestAnimationFrame(animate);
+  }
+  animate();
+}
+
+// ─── DENSE POSTER BACKGROUND ───
+function loadPosterBackground() {
+  const bg = document.getElementById('posterBg');
+  // Pick random movies for background posters
+  const shuffled = [...allMovies].sort(() => 0.5 - Math.random()).slice(0, 30);
+  // Triplicate for dense coverage
+  const all = [...shuffled, ...shuffled, ...shuffled];
+  all.forEach(m => {
+    const img = document.createElement('img');
+    img.src = `https://image.tmdb.org/t/p/w200/${m.movie_id}`;
+    img.alt = m.title;
+    img.loading = 'lazy';
+    // Use TMDB discover to get poster — fetch it properly
+    fetch(`https://api.themoviedb.org/3/movie/${m.movie_id}?api_key=${TMDB_API_KEY}&language=en-US`)
+      .then(r => r.json())
+      .then(d => { if (d.poster_path) img.src = `https://image.tmdb.org/t/p/w200${d.poster_path}`; })
+      .catch(() => {});
+    bg.appendChild(img);
+  });
+}
+
+// ─── NAVBAR SCROLL EFFECT ───
+function setupNavbarScroll() {
+  window.addEventListener('scroll', () => {
+    document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 50);
+  });
+}
+
+// ─── AUTOCOMPLETE ───
+const movieInput = document.getElementById('movieInput');
+const autocompleteEl = document.getElementById('autocomplete');
+
+movieInput.addEventListener('input', () => {
+  const val = movieInput.value.trim().toLowerCase();
+  selectedIdx = -1;
+  if (val.length < 2) { autocompleteEl.classList.remove('active'); return; }
+  const matches = allMovies.filter(m => m.title.toLowerCase().includes(val)).slice(0, 10);
+  if (!matches.length) { autocompleteEl.classList.remove('active'); return; }
+  autocompleteEl.innerHTML = matches.map((m, i) => {
+    const highlighted = m.title.replace(new RegExp(`(${escapeRegex(val)})`, 'gi'), '<mark>$1</mark>');
+    return `<div class="autocomplete-item" data-index="${i}" onclick="selectMovie('${escapeHtml(m.title)}')">${highlighted}</div>`;
+  }).join('');
+  autocompleteEl.classList.add('active');
+});
+
+function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function escapeHtml(s) { return s.replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+
+function selectMovie(name) {
+  movieInput.value = name;
+  autocompleteEl.classList.remove('active');
+  getRecommendations();
+}
+
+// ─── KEYBOARD NAV ───
+function setupKeyboardNav() {
+  movieInput.addEventListener('keydown', (e) => {
+    const items = autocompleteEl.querySelectorAll('.autocomplete-item');
+    if (!items.length) { if (e.key === 'Enter') getRecommendations(); return; }
+    if (e.key === 'ArrowDown') { e.preventDefault(); selectedIdx = Math.min(selectedIdx + 1, items.length - 1); updateSelection(items); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); selectedIdx = Math.max(selectedIdx - 1, 0); updateSelection(items); }
+    else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedIdx >= 0 && items[selectedIdx]) { movieInput.value = items[selectedIdx].textContent; autocompleteEl.classList.remove('active'); }
+      getRecommendations();
+    } else if (e.key === 'Escape') { autocompleteEl.classList.remove('active'); }
+  });
+}
+
+function updateSelection(items) {
+  items.forEach((el, i) => el.classList.toggle('selected', i === selectedIdx));
+  if (items[selectedIdx]) items[selectedIdx].scrollIntoView({ block: 'nearest' });
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.search-container')) autocompleteEl.classList.remove('active');
+});
+
+// ─── GET RECOMMENDATIONS (from precomputed JSON + TMDB API) ───
+async function getRecommendations() {
+  const movie = movieInput.value.trim();
+  if (!movie) return;
+
+  const btn = document.getElementById('searchBtn');
+  btn.classList.add('loading'); btn.disabled = true;
+
+  const container = document.getElementById('moviesContainer');
+  const section = document.getElementById('resultsSection');
+  section.classList.add('active');
+  document.getElementById('selectedMovieTitle').textContent = movie;
+
+  // Show skeleton
+  container.innerHTML = Array(10).fill(0).map(() => `
+    <div class="skeleton-card"><div class="skeleton-poster"></div>
+    <div class="skeleton-info"><div class="skeleton-line"></div><div class="skeleton-line"></div></div></div>
+  `).join('');
+  container.className = 'skeleton-grid';
+  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Lookup precomputed recommendations
+  const recs = recommendations[movie];
+  if (!recs) {
+    container.className = 'movies-grid';
+    container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 60px 20px;">
+      <p style="font-size: 48px; margin-bottom: 16px;">😕</p>
+      <p style="font-size: 18px; color: var(--text-secondary);">Movie not found. Please check the spelling and try again.</p></div>`;
+    btn.classList.remove('loading'); btn.disabled = false;
+    return;
+  }
+
+  // Fetch details from TMDB for each recommendation
+  try {
+    const detailsPromises = recs.map(r => fetchMovieDetails(r.movie_id));
+    const details = await Promise.all(detailsPromises);
+
+    const moviesData = recs.map((r, i) => ({
+      title: r.title,
+      movie_id: r.movie_id,
+      poster: details[i].poster,
+      overview: details[i].overview,
+      release_date: details[i].release_date,
+      vote_average: details[i].vote_average,
+      runtime: details[i].runtime,
+      genres: details[i].genres,
+      tagline: details[i].tagline,
+    }));
+
+    container.className = 'movies-grid';
+    container.innerHTML = moviesData.map((m) => `
+      <div class="movie-card" onclick='openModal(${JSON.stringify(m).replace(/'/g, "&#39;")})'>
+        <div class="card-poster">
+          <img src="${m.poster || ''}" alt="${m.title}" loading="lazy"
+               onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 300 450%22><rect fill=%22%2312122a%22 width=%22300%22 height=%22450%22/><text x=%2250%25%22 y=%2250%25%22 fill=%22%23555%22 font-size=%2240%22 text-anchor=%22middle%22>🎬</text></svg>'">
+          <div class="card-overlay">
+            <div class="card-rating">⭐ ${m.vote_average ? m.vote_average.toFixed(1) : 'N/A'}</div>
+            <div class="overlay-genres">
+              ${(m.genres || []).slice(0, 3).map(g => `<span class="genre-tag">${g}</span>`).join('')}
+            </div>
+            <p class="overlay-overview">${m.overview || ''}</p>
+          </div>
+        </div>
+        <div class="card-info">
+          <div class="card-title">${m.title}</div>
+          <div class="card-meta">
+            <span>📅 ${m.release_date ? m.release_date.split('-')[0] : 'N/A'}</span>
+            <span>⏱ ${m.runtime || '?'} min</span>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {
+    container.className = 'movies-grid';
+    container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 60px 20px;">
+      <p style="font-size: 48px; margin-bottom: 16px;">😕</p>
+      <p style="font-size: 18px; color: var(--text-secondary);">Something went wrong. Please try again.</p></div>`;
+  } finally {
+    btn.classList.remove('loading'); btn.disabled = false;
+  }
+}
+
+// ─── MODAL ───
+function openModal(movie) {
+  document.getElementById('modalPoster').src = movie.poster || '';
+  document.getElementById('modalTitle').textContent = movie.title;
+  document.getElementById('modalTagline').textContent = movie.tagline || '';
+  document.getElementById('modalOverview').textContent = movie.overview || 'No overview available.';
+  document.getElementById('modalStats').innerHTML = `
+    <div class="stat-chip">⭐ Rating: <span class="val">${movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A'}</span></div>
+    <div class="stat-chip">📅 Year: <span class="val">${movie.release_date ? movie.release_date.split('-')[0] : 'N/A'}</span></div>
+    <div class="stat-chip">⏱ Runtime: <span class="val">${movie.runtime || '?'} min</span></div>
+  `;
+  document.getElementById('modalGenres').innerHTML = (movie.genres || []).map(g => `<span class="genre-tag">${g}</span>`).join('');
+  document.getElementById('modalOverlay').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('modalOverlay') && e.target.className !== 'modal-close') return;
+  document.getElementById('modalOverlay').classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeModal({ target: document.getElementById('modalOverlay') });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+*.pkl
+*.csv
+*.ipynb
+.ipynb_checkpoints
+__pycache__
+templates/
+backend.py
+app.py
+precompute.py
+tempCodeRunnerFile.py

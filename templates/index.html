@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AI-powered Movie Recommender System by Abdulla Ansari. Discover your next favorite movie.">
+  <title>CineMatch — Movie Recommender by Abdulla Ansari</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+</head>
+<body>
+
+  <!-- ─── ANTIGRAVITY CANVAS ANIMATION ─── -->
+  <canvas id="antigravityCanvas"></canvas>
+
+  <!-- ─── DENSE POSTER COLLAGE BACKGROUND ─── -->
+  <div class="poster-bg" id="posterBg"></div>
+  <div class="poster-bg-overlay"></div>
+
+  <!-- ─── NAVBAR ─── -->
+  <nav class="navbar" id="navbar">
+    <a href="#" class="logo" onclick="location.reload()">
+      <div class="logo-icon">🎬</div>
+      <span class="logo-text">CineMatch</span>
+    </a>
+    <div class="nav-author">
+      <div class="author-avatar">AA</div>
+      <div class="author-info">
+        <span class="author-label">Created by</span>
+        <span class="author-name">Abdulla Ansari</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ─── HERO SECTION ─── -->
+  <section class="hero" id="heroSection">
+    <div class="hero-badge">
+      <span class="dot"></span>
+      AI-Powered Recommendations
+    </div>
+    <h1>
+      Discover Your Next<br>
+      <span class="gradient-text">Favorite Movie</span>
+    </h1>
+    <p class="hero-subtitle">
+      Search from thousands of movies and get personalized recommendations powered by machine learning.
+      Built with ❤️ by <strong style="color: var(--accent-3);">Abdulla Ansari</strong>
+    </p>
+
+    <!-- ─── SEARCH BOX ─── -->
+    <div class="search-container">
+      <div class="search-wrapper">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="movieInput" placeholder="Type a movie name... e.g. Avatar, Inception" autocomplete="off">
+        <button id="searchBtn" onclick="getRecommendations()">
+          <span class="btn-text">✨ Recommend</span>
+          <div class="btn-loader"></div>
+        </button>
+      </div>
+      <div class="autocomplete-dropdown" id="autocomplete"></div>
+    </div>
+  </section>
+
+  <!-- ─── RESULTS SECTION ─── -->
+  <section class="results-section" id="resultsSection">
+    <div class="results-header">
+      <h2>Recommendations for "<span class="selected-movie" id="selectedMovieTitle"></span>"</h2>
+      <p>Here are movies you'll love based on your selection</p>
+    </div>
+    <div id="moviesContainer"></div>
+  </section>
+
+  <!-- ─── MOVIE DETAIL MODAL ─── -->
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <img id="modalPoster" src="" alt="">
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <h2 class="modal-title" id="modalTitle"></h2>
+        <p class="modal-tagline" id="modalTagline"></p>
+        <div class="modal-stats" id="modalStats"></div>
+        <div class="modal-genres" id="modalGenres"></div>
+        <p class="modal-overview" id="modalOverview"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── FOOTER ─── -->
+  <footer class="footer">
+    <p>🎬 CineMatch — Movie Recommender System &copy; 2026 | Designed & Developed by <a href="#">Abdulla Ansari</a></p>
+  </footer>
+
+<script>
+// ─── STATE ───
+let allMovies = [];
+let selectedIdx = -1;
+
+// ─── INIT ───
+document.addEventListener('DOMContentLoaded', () => {
+  initAntigravity();
+  loadMovies();
+  loadPosterBackground();
+  setupNavbarScroll();
+  setupKeyboardNav();
+});
+
+// ─── ANTIGRAVITY PHYSICS ANIMATION (Google-style) ───
+function initAntigravity() {
+  const canvas = document.getElementById('antigravityCanvas');
+  const ctx = canvas.getContext('2d');
+  let W, H;
+  let mouse = { x: -1000, y: -1000 };
+  const particles = [];
+  const PARTICLE_COUNT = 60;
+  const colors = [
+    'rgba(233, 69, 96, 0.6)', 'rgba(123, 47, 247, 0.6)', 'rgba(0, 212, 255, 0.5)',
+    'rgba(255, 107, 157, 0.5)', 'rgba(196, 113, 245, 0.5)', 'rgba(72, 219, 251, 0.4)',
+    'rgba(255, 215, 0, 0.3)', 'rgba(0, 255, 136, 0.3)'
+  ];
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // Track mouse
+  document.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
+  document.addEventListener('mouseleave', () => { mouse.x = -1000; mouse.y = -1000; });
+
+  // Create particles
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const size = Math.random() * 18 + 4;
+    particles.push({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      vx: (Math.random() - 0.5) * 1.5,
+      vy: (Math.random() - 0.5) * 1.5,
+      size: size,
+      baseSize: size,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      rotation: Math.random() * 360,
+      rotSpeed: (Math.random() - 0.5) * 2,
+      wobblePhase: Math.random() * Math.PI * 2,
+      wobbleSpeed: Math.random() * 0.02 + 0.005,
+      shape: Math.random() > 0.4 ? 'circle' : (Math.random() > 0.5 ? 'square' : 'triangle')
+    });
+  }
+
+  function animate() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Draw connections between nearby particles
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 150) {
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = `rgba(123, 47, 247, ${0.08 * (1 - dist / 150)})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+    }
+
+    particles.forEach(p => {
+      // Wobble (antigravity float effect)
+      p.wobblePhase += p.wobbleSpeed;
+      p.vy += Math.sin(p.wobblePhase) * 0.02;
+      p.vx += Math.cos(p.wobblePhase * 0.7) * 0.015;
+
+      // Mouse repulsion (antigravity push)
+      const mdx = p.x - mouse.x;
+      const mdy = p.y - mouse.y;
+      const mDist = Math.sqrt(mdx * mdx + mdy * mdy);
+      if (mDist < 180) {
+        const force = (180 - mDist) / 180;
+        p.vx += (mdx / mDist) * force * 0.8;
+        p.vy += (mdy / mDist) * force * 0.8;
+        p.size = p.baseSize * (1 + force * 0.5);
+      } else {
+        p.size += (p.baseSize - p.size) * 0.05;
+      }
+
+      // Damping (smooth slowdown)
+      p.vx *= 0.985;
+      p.vy *= 0.985;
+
+      // Update position
+      p.x += p.vx;
+      p.y += p.vy;
+
+      // Bounce off walls (antigravity style)
+      if (p.x < p.size) { p.x = p.size; p.vx *= -0.7; }
+      if (p.x > W - p.size) { p.x = W - p.size; p.vx *= -0.7; }
+      if (p.y < p.size) { p.y = p.size; p.vy *= -0.7; }
+      if (p.y > H - p.size) { p.y = H - p.size; p.vy *= -0.7; }
+
+      // Rotation
+      p.rotation += p.rotSpeed;
+
+      // Draw particle
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate((p.rotation * Math.PI) / 180);
+      ctx.globalAlpha = 0.7;
+
+      if (p.shape === 'circle') {
+        ctx.beginPath();
+        ctx.arc(0, 0, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.fill();
+        // Glow
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 20;
+        ctx.fill();
+      } else if (p.shape === 'square') {
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 15;
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(0, -p.size);
+        ctx.lineTo(p.size * 0.87, p.size * 0.5);
+        ctx.lineTo(-p.size * 0.87, p.size * 0.5);
+        ctx.closePath();
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 15;
+        ctx.fill();
+      }
+
+      ctx.restore();
+    });
+
+    requestAnimationFrame(animate);
+  }
+
+  animate();
+}
+
+// ─── LOAD MOVIES LIST ───
+async function loadMovies() {
+  try {
+    const res = await fetch('/api/movies');
+    allMovies = await res.json();
+  } catch (e) {
+    console.error('Failed to load movies:', e);
+  }
+}
+
+// ─── DENSE POSTER BACKGROUND ───
+async function loadPosterBackground() {
+  try {
+    const res = await fetch('/api/trending');
+    const trending = await res.json();
+    const bg = document.getElementById('posterBg');
+    // Duplicate posters to fill the entire background densely
+    const allPosters = [...trending, ...trending, ...trending];
+    allPosters.forEach(m => {
+      if (m.poster) {
+        const img = document.createElement('img');
+        img.src = m.poster;
+        img.alt = m.title;
+        img.loading = 'lazy';
+        bg.appendChild(img);
+      }
+    });
+  } catch (e) {
+    console.error('Failed to load poster bg:', e);
+  }
+}
+
+// ─── NAVBAR SCROLL EFFECT ───
+function setupNavbarScroll() {
+  window.addEventListener('scroll', () => {
+    document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 50);
+  });
+}
+
+// ─── AUTOCOMPLETE ───
+const movieInput = document.getElementById('movieInput');
+const autocomplete = document.getElementById('autocomplete');
+
+movieInput.addEventListener('input', () => {
+  const val = movieInput.value.trim().toLowerCase();
+  selectedIdx = -1;
+  if (val.length < 2) { autocomplete.classList.remove('active'); return; }
+  const matches = allMovies.filter(m => m.toLowerCase().includes(val)).slice(0, 10);
+  if (!matches.length) { autocomplete.classList.remove('active'); return; }
+  autocomplete.innerHTML = matches.map((m, i) => {
+    const highlighted = m.replace(new RegExp(`(${escapeRegex(val)})`, 'gi'), '<mark>$1</mark>');
+    return `<div class="autocomplete-item" data-index="${i}" onclick="selectMovie('${escapeHtml(m)}')">${highlighted}</div>`;
+  }).join('');
+  autocomplete.classList.add('active');
+});
+
+function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function escapeHtml(s) { return s.replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+
+function selectMovie(name) {
+  movieInput.value = name;
+  autocomplete.classList.remove('active');
+  getRecommendations();
+}
+
+// ─── KEYBOARD NAV FOR AUTOCOMPLETE ───
+function setupKeyboardNav() {
+  movieInput.addEventListener('keydown', (e) => {
+    const items = autocomplete.querySelectorAll('.autocomplete-item');
+    if (!items.length) {
+      if (e.key === 'Enter') getRecommendations();
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      selectedIdx = Math.min(selectedIdx + 1, items.length - 1);
+      updateSelection(items);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      selectedIdx = Math.max(selectedIdx - 1, 0);
+      updateSelection(items);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedIdx >= 0 && items[selectedIdx]) {
+        movieInput.value = items[selectedIdx].textContent;
+        autocomplete.classList.remove('active');
+      }
+      getRecommendations();
+    } else if (e.key === 'Escape') {
+      autocomplete.classList.remove('active');
+    }
+  });
+}
+
+function updateSelection(items) {
+  items.forEach((el, i) => el.classList.toggle('selected', i === selectedIdx));
+  if (items[selectedIdx]) items[selectedIdx].scrollIntoView({ block: 'nearest' });
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.search-container')) autocomplete.classList.remove('active');
+});
+
+// ─── GET RECOMMENDATIONS ───
+async function getRecommendations() {
+  const movie = movieInput.value.trim();
+  if (!movie) return;
+
+  const btn = document.getElementById('searchBtn');
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  const container = document.getElementById('moviesContainer');
+  const section = document.getElementById('resultsSection');
+  section.classList.add('active');
+  document.getElementById('selectedMovieTitle').textContent = movie;
+
+  // Show skeleton
+  container.innerHTML = Array(10).fill(0).map(() => `
+    <div class="skeleton-card">
+      <div class="skeleton-poster"></div>
+      <div class="skeleton-info">
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line"></div>
+      </div>
+    </div>
+  `).join('');
+  container.className = 'skeleton-grid';
+
+  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  try {
+    const res = await fetch('/api/recommend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ movie })
+    });
+
+    if (!res.ok) {
+      throw new Error('Movie not found');
+    }
+
+    const movies = await res.json();
+    container.className = 'movies-grid';
+    container.innerHTML = movies.map((m, i) => `
+      <div class="movie-card" onclick='openModal(${JSON.stringify(m).replace(/'/g, "&#39;")})'>
+        <div class="card-poster">
+          <img src="${m.poster || ''}" alt="${m.title}" loading="lazy"
+               onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 300 450%22><rect fill=%22%2312122a%22 width=%22300%22 height=%22450%22/><text x=%2250%25%22 y=%2250%25%22 fill=%22%23555%22 font-size=%2240%22 text-anchor=%22middle%22>🎬</text></svg>'">
+          <div class="card-overlay">
+            <div class="card-rating">⭐ ${m.vote_average ? m.vote_average.toFixed(1) : 'N/A'}</div>
+            <div class="overlay-genres">
+              ${(m.genres || []).slice(0, 3).map(g => `<span class="genre-tag">${g}</span>`).join('')}
+            </div>
+            <p class="overlay-overview">${m.overview || ''}</p>
+          </div>
+        </div>
+        <div class="card-info">
+          <div class="card-title">${m.title}</div>
+          <div class="card-meta">
+            <span>📅 ${m.release_date ? m.release_date.split('-')[0] : 'N/A'}</span>
+            <span>⏱ ${m.runtime || '?'} min</span>
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+  } catch (err) {
+    container.className = 'movies-grid';
+    container.innerHTML = `
+      <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px;">
+        <p style="font-size: 48px; margin-bottom: 16px;">😕</p>
+        <p style="font-size: 18px; color: var(--text-secondary);">
+          Movie not found. Please check the spelling and try again.
+        </p>
+      </div>`;
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+// ─── MODAL ───
+function openModal(movie) {
+  const overlay = document.getElementById('modalOverlay');
+  document.getElementById('modalPoster').src = movie.poster || '';
+  document.getElementById('modalTitle').textContent = movie.title;
+  document.getElementById('modalTagline').textContent = movie.tagline || '';
+  document.getElementById('modalOverview').textContent = movie.overview || 'No overview available.';
+
+  document.getElementById('modalStats').innerHTML = `
+    <div class="stat-chip">⭐ Rating: <span class="val">${movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A'}</span></div>
+    <div class="stat-chip">📅 Year: <span class="val">${movie.release_date ? movie.release_date.split('-')[0] : 'N/A'}</span></div>
+    <div class="stat-chip">⏱ Runtime: <span class="val">${movie.runtime || '?'} min</span></div>
+  `;
+
+  document.getElementById('modalGenres').innerHTML = (movie.genres || [])
+    .map(g => `<span class="genre-tag">${g}</span>`).join('');
+
+  overlay.classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('modalOverlay') && e.target.className !== 'modal-close') return;
+  document.getElementById('modalOverlay').classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeModal({ target: document.getElementById('modalOverlay') });
+});
+</script>
+</body>
+</html>
