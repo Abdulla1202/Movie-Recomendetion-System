@@ -5,11 +5,9 @@ Tired of scrolling endlessly on Netflix and still not finding what to watch?
 
 ---
 
-## 🌐 Live Demo
+## 🌐 Live Demo  [Link Click Here](https://cinematch-mocha.vercel.app/  )
 
-👉 [Link Click Here](https://cinematch-mocha.vercel.app/  )
-
-👉 LinkedIn Project Post:  [Post Link Click Here](https://www.linkedin.com/posts/abdulla-ansari-62910b296_machinelearning-webdevelopment-python-ugcPost-7452818500512944128-71VJ?utm_source=share&utm_medium=member_desktop&rcm=ACoAAEeQOcEBFlNJZGNY1nwU2TD-gT_TpFFtRuk)
+## 👉 LinkedIn Project Post:  [Post Link Click Here](https://www.linkedin.com/posts/abdulla-ansari-62910b296_machinelearning-webdevelopment-python-ugcPost-7452818500512944128-71VJ?utm_source=share&utm_medium=member_desktop&rcm=ACoAAEeQOcEBFlNJZGNY1nwU2TD-gT_TpFFtRuk)
 
 ---
 
