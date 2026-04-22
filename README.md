@@ -47,4 +47,29 @@ Instead of loading heavy `.pkl` files in production, recommendations are precomp
 ---
 
 ## 📂 Project Structure
+├── data/
+│ ├── movies.json
+│ └── recommendations.json
+├── static/
+├── templates/
+├── app.py
+├── backend.py
+├── precompute.py
+├── vercel.json
+└── index.html
+
+
+---
+---
+
+## 🛠️ Run Locally
+
+```bash
+git clone https://github.com/Abdulla1202/Movie-Recomendetion-System.git
+cd Movie-Recomendetion-System
+pip install -r requirements.txt
+python backend.py
+
+Open in browser:
+http://localhost:5000
 
